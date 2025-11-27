@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Pause, Activity, ArrowRight, TrendingUp, ZoomIn, ZoomOut, Maximize, Camera, Home, Download, Search, MoreVertical, EyeOff, Pin, ArrowUp, ArrowDown, FileText, X, Minimize2 } from 'lucide-react';
+import { Play, Pause, Activity, ArrowRight, TrendingUp, ZoomIn, ZoomOut, Maximize, Camera, Home, Download, Search, MoreVertical, EyeOff, Pin, ArrowUp, ArrowDown, FileText, X, Minimize2, Info } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend, ComposedChart } from 'recharts';
 
 // --- Constants & Configuration ---
@@ -204,7 +205,9 @@ const Hero = ({ onStart, loading }: { onStart: () => void, loading: boolean }) =
   </div>
 );
 
-const ForceGraph = ({ matrix, nodes, threshold = 0 }: { matrix: number[][], nodes: string[], threshold?: number }) => {
+const ForceGraph = ({ matrix, nodes, threshold = 0, explanation }: { matrix: number[][], nodes: string[], threshold?: number, explanation?: string }) => {
+
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -390,7 +393,7 @@ const ForceGraph = ({ matrix, nodes, threshold = 0 }: { matrix: number[][], node
   }, [matrix, nodes, positions, transform]);
 
   return (
-    <DashboardSection title="Network Topology" className="h-full">
+    <DashboardSection title="Network Topology" className="h-full" explanation={explanation}>
       <div ref={containerRef} className="w-full h-full relative group overflow-hidden">
         <canvas
           ref={canvasRef}
@@ -475,7 +478,7 @@ const SectionToolbar = ({
   );
 };
 
-const LiveHeatMap = ({ matrix, nodes }: { matrix: number[][], nodes: string[] }) => {
+const LiveHeatMap = ({ matrix, nodes, explanation }: { matrix: number[][], nodes: string[], explanation?: string }) => {
   const [hoveredCell, setHoveredCell] = useState<{ i: number, j: number } | null>(null);
 
   // Spectral Gradient (Blue -> Cyan -> Green -> Yellow -> Red)
@@ -486,33 +489,24 @@ const LiveHeatMap = ({ matrix, nodes }: { matrix: number[][], nodes: string[] })
   };
 
   return (
-    <DashboardSection title="Live Heat Map Visualization" className="h-full">
+    <DashboardSection title="Live Heat Map Visualization" className="h-full" explanation={explanation}>
       <div className="flex flex-col items-center justify-center h-full p-4">
-        <div className="relative overflow-auto custom-scrollbar max-w-full max-h-full">
+        <div className="relative overflow-auto custom-scrollbar max-w-full max-h-full bg-[#020617] p-4 rounded-xl border border-white/5">
           <div
-            className="grid gap-0"
+            className="grid gap-px bg-slate-800/50" // Gap for grid lines
             style={{
-              gridTemplateColumns: `auto repeat(${nodes.length}, minmax(24px, 1fr))`,
+              gridTemplateColumns: `auto repeat(${nodes.length}, minmax(32px, 1fr))`, // Slightly larger cells
             }}
           >
-            {/* Top Left Empty */}
-            <div className="sticky top-0 left-0 z-20 bg-[#020617]"></div>
-
-            {/* X Axis Labels */}
-            {nodes.map((node, i) => (
-              <div key={`x-${i}`} className="sticky top-0 z-10 bg-[#020617] p-1 flex items-end justify-center h-24 border-b border-white/10">
-                <span className="text-[10px] font-light text-slate-400 -rotate-90 whitespace-nowrap origin-bottom translate-y-2">
-                  {node}
-                </span>
-              </div>
-            ))}
+            {/* Top Left Empty (Placeholder for alignment if needed, but we are moving labels to bottom) */}
+            {/* Actually, if we move labels to bottom, we just need the rows first */}
 
             {/* Rows */}
             {nodes.map((rowNode, i) => (
               <React.Fragment key={`row-${i}`}>
                 {/* Y Axis Label */}
-                <div className="sticky left-0 z-10 bg-[#020617] p-2 flex items-center justify-end border-r border-white/10">
-                  <span className="text-[10px] font-light text-slate-400 whitespace-nowrap">
+                <div className="sticky left-0 z-10 bg-[#020617] py-1 px-3 flex items-center justify-end">
+                  <span className="text-[10px] font-medium text-slate-400 whitespace-nowrap">
                     {rowNode}
                   </span>
                 </div>
@@ -525,7 +519,7 @@ const LiveHeatMap = ({ matrix, nodes }: { matrix: number[][], nodes: string[] })
                   return (
                     <div
                       key={`${i}-${j}`}
-                      className="w-6 h-6 relative group"
+                      className="w-8 h-8 relative group transition-colors duration-200"
                       onMouseEnter={() => setHoveredCell({ i, j })}
                       onMouseLeave={() => setHoveredCell(null)}
                       style={{ backgroundColor: getHeatMapColor(val) }}
@@ -541,6 +535,19 @@ const LiveHeatMap = ({ matrix, nodes }: { matrix: number[][], nodes: string[] })
                 })}
               </React.Fragment>
             ))}
+
+            {/* Bottom Left Empty */}
+            <div className="sticky bottom-0 left-0 z-20 bg-[#020617]"></div>
+
+            {/* X Axis Labels (Bottom) */}
+            {nodes.map((node, i) => (
+              <div key={`x-${i}`} className="sticky bottom-0 z-10 bg-[#020617] pt-2 pb-6 flex items-start justify-center h-32">
+                <span className="text-[10px] font-medium text-slate-400 -rotate-90 whitespace-nowrap origin-top translate-y-2">
+                  {node}
+                </span>
+              </div>
+            ))}
+
           </div>
         </div>
 
@@ -555,22 +562,45 @@ const LiveHeatMap = ({ matrix, nodes }: { matrix: number[][], nodes: string[] })
   );
 };
 
+const ExplanationModal = ({ title, content, onClose }: { title: string, content: string, onClose: () => void }) => {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+      <div className="bg-[#0f172a] border border-cyan-500/30 rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden animate-scale-in">
+        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-[#020617]">
+          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <Info className="text-cyan-400" /> {title}
+          </h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+        <div className="p-6 text-slate-300 space-y-4 leading-relaxed">
+          <ReactMarkdown>{content}</ReactMarkdown>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const DashboardSection = ({
   title,
   children,
   className = "",
   onDownload,
   searchQuery,
-  setSearchQuery
+  setSearchQuery,
+  explanation
 }: {
   title: string,
   children: React.ReactNode,
   className?: string,
   onDownload?: () => void,
   searchQuery?: string,
-  setSearchQuery?: (q: string) => void
+  setSearchQuery?: (q: string) => void,
+  explanation?: string
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showExplanation, setShowExplanation] = useState(false);
 
   return (
     <div className={`bg-[#020617] border border-white/10 rounded-xl overflow-hidden flex flex-col transition-all duration-500 ${isFullscreen ? 'fixed inset-0 z-50' : 'relative'} ${className}`}>
@@ -579,6 +609,15 @@ const DashboardSection = ({
           {title}
         </h2>
         <div className="flex items-center gap-2">
+          {explanation && (
+            <button
+              onClick={() => setShowExplanation(true)}
+              className="p-1.5 text-slate-400 hover:text-cyan-400 transition-colors mr-2"
+              title="Show Explanation"
+            >
+              <Info size={18} />
+            </button>
+          )}
           <SectionToolbar
             onDownload={onDownload}
             searchQuery={searchQuery}
@@ -595,6 +634,14 @@ const DashboardSection = ({
       <div className="flex-1 overflow-hidden relative p-4">
         {children}
       </div>
+
+      {showExplanation && explanation && (
+        <ExplanationModal
+          title={`About: ${title}`}
+          content={explanation}
+          onClose={() => setShowExplanation(false)}
+        />
+      )}
     </div>
   );
 };
@@ -680,7 +727,7 @@ const ColumnHeader = ({
   );
 };
 
-const CityCentralityMatrix = ({ data }: { data: any[] }) => {
+const CityCentralityMatrix = ({ data, explanation }: { data: any[], explanation?: string }) => {
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>({ key: 'Composite', direction: 'desc' });
   const [pinnedColumns, setPinnedColumns] = useState<string[]>(['name']);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
@@ -740,6 +787,7 @@ const CityCentralityMatrix = ({ data }: { data: any[] }) => {
       searchQuery={searchQuery}
       setSearchQuery={setSearchQuery}
       className="h-full"
+      explanation={explanation}
     >
       <div className="overflow-auto h-full custom-scrollbar relative">
         <table className="w-full text-left border-collapse">
@@ -793,7 +841,7 @@ const CityCentralityMatrix = ({ data }: { data: any[] }) => {
   );
 };
 
-const CompositeScoreRanking = ({ data }: { data: any[] }) => {
+const CompositeScoreRanking = ({ data, explanation }: { data: any[], explanation?: string }) => {
   const handleDownload = () => {
     // Simple CSV export for chart data
     const csvContent = "data:text/csv;charset=utf-8,"
@@ -809,7 +857,7 @@ const CompositeScoreRanking = ({ data }: { data: any[] }) => {
   };
 
   return (
-    <DashboardSection title="Composite Score Ranking" onDownload={handleDownload} className="h-full">
+    <DashboardSection title="Composite Score Ranking" onDownload={handleDownload} className="h-full" explanation={explanation}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical" margin={{ left: 40, right: 30, top: 20, bottom: 20 }}>
           <XAxis type="number" hide />
@@ -835,13 +883,65 @@ const CompositeScoreRanking = ({ data }: { data: any[] }) => {
   );
 };
 
-const TemporalHasseDiagram = ({ months, activeIndex }: { months: string[], activeIndex: number }) => {
+const TemporalHasseDiagram = ({ months, activeIndex, matrix, explanation }: { months: string[], activeIndex: number, matrix: number[][], explanation?: string }) => {
+
+  const properties = useMemo(() => {
+    if (!matrix || matrix.length === 0) return { reflexive: 'N/A', antisymmetric: 'N/A', transitive: 'N/A' };
+
+    const n = matrix.length;
+    let isReflexive = true;
+    let isAntisymmetric = true;
+    let isTransitive = true;
+
+    // Check Reflexive: M[i][i] should be non-zero (or 1, depending on definition, assuming non-zero for now)
+    for (let i = 0; i < n; i++) {
+      if (matrix[i][i] === 0) {
+        isReflexive = false;
+        break;
+      }
+    }
+
+    // Check Antisymmetric: If M[i][j] > 0 and M[j][i] > 0, then i == j
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (i !== j && matrix[i][j] > 0 && matrix[j][i] > 0) {
+          isAntisymmetric = false;
+          break;
+        }
+      }
+      if (!isAntisymmetric) break;
+    }
+
+    // Check Transitive: If M[i][j] > 0 and M[j][k] > 0, then M[i][k] > 0
+    // This can be expensive O(n^3), but n is small (cities ~20)
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (matrix[i][j] > 0) {
+          for (let k = 0; k < n; k++) {
+            if (matrix[j][k] > 0 && matrix[i][k] === 0) {
+              isTransitive = false;
+              break;
+            }
+          }
+        }
+        if (!isTransitive) break;
+      }
+      if (!isTransitive) break;
+    }
+
+    return {
+      reflexive: isReflexive ? 'YES' : 'NO',
+      antisymmetric: isAntisymmetric ? 'YES' : 'NO',
+      transitive: isTransitive ? 'YES' : 'NO'
+    };
+  }, [matrix]);
+
   return (
-    <div className="h-full flex flex-col relative p-6">
+    <DashboardSection title="Temporal Relation (Hasse)" className="h-full" explanation={explanation}>
       <div className="absolute top-4 right-4 p-3 bg-black/40 backdrop-blur rounded border border-white/10 text-xs font-mono text-slate-400 space-y-1 z-20">
-        <div className="flex justify-between gap-4"><span>Reflexive:</span> <span className="text-cyan-400">YES</span></div>
-        <div className="flex justify-between gap-4"><span>Antisymmetric:</span> <span className="text-cyan-400">TRUE</span></div>
-        <div className="flex justify-between gap-4"><span>Transitive:</span> <span className="text-cyan-400">YES</span></div>
+        <div className="flex justify-between gap-4"><span>Reflexive:</span> <span className={properties.reflexive === 'YES' ? "text-cyan-400" : "text-red-400"}>{properties.reflexive}</span></div>
+        <div className="flex justify-between gap-4"><span>Antisymmetric:</span> <span className={properties.antisymmetric === 'YES' ? "text-cyan-400" : "text-red-400"}>{properties.antisymmetric}</span></div>
+        <div className="flex justify-between gap-4"><span>Transitive:</span> <span className={properties.transitive === 'YES' ? "text-cyan-400" : "text-red-400"}>{properties.transitive}</span></div>
       </div>
 
       <div className="flex-1 overflow-x-auto custom-scrollbar flex items-center gap-8 px-8">
@@ -864,32 +964,34 @@ const TemporalHasseDiagram = ({ months, activeIndex }: { months: string[], activ
           );
         })}
       </div>
-    </div>
+    </DashboardSection>
   );
 };
 
-const ComparativeAnalysis = ({ data }: { data: any[] }) => {
+const ComparativeAnalysis = ({ data, explanation }: { data: any[], explanation?: string }) => {
   // Top 5 Contrast
   const top5 = data.slice(0, 5);
 
   return (
-    <div className="h-full flex flex-col">
-      <h3 className="text-sm font-mono text-slate-400 mb-4 flex items-center gap-2 uppercase">
-        <TrendingUp size={16} /> Top 5 Contrast (Degree vs Eigenvector)
-      </h3>
-      <div className="flex-1 min-h-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={top5} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-            <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 12 }} />
-            <YAxis tick={{ fill: '#64748b', fontSize: 12 }} />
-            <Tooltip contentStyle={{ backgroundColor: '#020617', borderColor: '#1e293b' }} />
-            <Legend />
-            <Bar dataKey="Degree" fill="#22d3ee" barSize={30} />
-            <Bar dataKey="Eigenvector" fill="#f472b6" barSize={30} />
-          </ComposedChart>
-        </ResponsiveContainer>
+    <DashboardSection title="Comparative Analysis" className="h-full" explanation={explanation}>
+      <div className="h-full flex flex-col">
+        <h3 className="text-sm font-mono text-slate-400 mb-4 flex items-center gap-2 uppercase">
+          <TrendingUp size={16} /> Top 5 Contrast (Degree vs Eigenvector)
+        </h3>
+        <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={top5} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+              <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 12 }} />
+              <YAxis tick={{ fill: '#64748b', fontSize: 12 }} />
+              <Tooltip contentStyle={{ backgroundColor: '#020617', borderColor: '#1e293b' }} />
+              <Legend />
+              <Bar dataKey="Degree" fill="#22d3ee" barSize={30} />
+              <Bar dataKey="Eigenvector" fill="#f472b6" barSize={30} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
       </div>
-    </div>
+    </DashboardSection>
   );
 };
 
@@ -907,7 +1009,11 @@ const ConfigurationSidebar = ({
   setSimilarityThreshold,
   weightingMethod,
   setWeightingMethod,
-  currentSimilarityStats
+  currentSimilarityStats,
+  customWeights,
+  setCustomWeights,
+  isOpen,
+  onToggle
 }: {
   selectedCategory: string,
   setSelectedCategory: (c: string) => void,
@@ -919,7 +1025,11 @@ const ConfigurationSidebar = ({
   setSimilarityThreshold: (t: number) => void,
   weightingMethod: string,
   setWeightingMethod: (m: string) => void,
-  currentSimilarityStats: { min: number, max: number, avg: number }
+  currentSimilarityStats: { min: number, max: number, avg: number },
+  customWeights?: { degree: number, closeness: number, betweenness: number, eigenvector: number },
+  setCustomWeights?: (w: any) => void,
+  isOpen: boolean,
+  onToggle: () => void
 }) => {
   const categories = [
     "1. Food Staples & Grains",
@@ -939,110 +1049,155 @@ const ConfigurationSidebar = ({
     "Interactive"
   ];
 
+  const handleWeightChange = (key: string, value: number) => {
+    if (setCustomWeights && customWeights) {
+      setCustomWeights({ ...customWeights, [key]: value });
+    }
+  };
+
   return (
-    <div className="w-80 bg-[#0f172a] border-r border-white/10 flex flex-col h-screen sticky top-0 overflow-y-auto custom-scrollbar z-40 shadow-2xl">
-      <div className="p-6 border-b border-white/10 bg-[#020617]">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <Activity className="text-cyan-400" /> Configuration
-        </h2>
-        <p className="text-xs text-slate-500 mt-1">Adjust visualization parameters</p>
+    <>
+      {/* Collapsed Toggle Button */}
+      <button
+        onClick={onToggle}
+        className={`fixed left-4 top-4 z-50 p-2 bg-cyan-950/80 text-cyan-400 rounded-lg border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.2)] hover:bg-cyan-900 transition-all duration-300 ${isOpen ? 'opacity-0 pointer-events-none -translate-x-10' : 'opacity-100 translate-x-0'}`}
+      >
+        <MoreVertical size={20} />
+      </button>
+
+      {/* Sidebar */}
+      <div className={`fixed left-0 top-0 h-screen w-80 bg-[#0f172a] border-r border-white/10 flex flex-col z-40 shadow-2xl transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-6 border-b border-white/10 bg-[#020617] flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <Activity className="text-cyan-400" /> Configuration
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">Adjust visualization parameters</p>
+          </div>
+          <button onClick={onToggle} className="text-slate-400 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 flex flex-col gap-8 overflow-y-auto custom-scrollbar flex-1">
+
+          {/* Category Selection */}
+          <div className="flex flex-col gap-3">
+            <label className="text-sm font-semibold text-slate-300">Select Product Category</label>
+            <div className="relative">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 appearance-none focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
+              >
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <ArrowDown size={14} />
+              </div>
+            </div>
+          </div>
+
+          {/* Time Step Slider */}
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-between items-end">
+              <label className="text-sm font-semibold text-slate-300">Select Time Step</label>
+              <span className="text-xs font-mono text-cyan-400">{months[timeIndex] || 'Loading...'}</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max={maxTime}
+              value={timeIndex}
+              onChange={(e) => setTimeIndex(parseInt(e.target.value))}
+              className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+            />
+            <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+              <span>{months[0]}</span>
+              <span>{months[months.length - 1]}</span>
+            </div>
+          </div>
+
+          {/* Similarity Threshold */}
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-between items-end">
+              <label className="text-sm font-semibold text-slate-300">Similarity Threshold</label>
+              <span className="text-xs font-mono text-cyan-400">{similarityThreshold.toFixed(3)}</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.001"
+              value={similarityThreshold}
+              onChange={(e) => setSimilarityThreshold(parseFloat(e.target.value))}
+              className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-red-500"
+            />
+            <p className="text-xs text-slate-500">Filter edges below this correlation value.</p>
+          </div>
+
+          {/* Weighting Technique */}
+          <div className="flex flex-col gap-3">
+            <label className="text-sm font-semibold text-slate-300">Composite Score Weighting</label>
+            <div className="relative">
+              <select
+                value={weightingMethod}
+                onChange={(e) => setWeightingMethod(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 appearance-none focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
+              >
+                {weightingMethods.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <ArrowDown size={14} />
+              </div>
+            </div>
+
+            {/* Interactive Sliders */}
+            {weightingMethod === "Interactive" && customWeights && (
+              <div className="mt-2 space-y-3 bg-slate-900/50 p-3 rounded-lg border border-white/5 animate-fade-in">
+                {Object.entries(customWeights).map(([key, val]) => (
+                  <div key={key} className="space-y-1">
+                    <div className="flex justify-between text-[10px] uppercase text-slate-400 font-mono">
+                      <span>{key}</span>
+                      <span>{val.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={val}
+                      onChange={(e) => handleWeightChange(key, parseFloat(e.target.value))}
+                      className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Stats Display */}
+          <div className="bg-slate-900/50 rounded-xl p-4 border border-white/5">
+            <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">Current Similarity Stats</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-[10px] text-slate-500">Min</div>
+                <div className="text-sm font-mono text-white">{currentSimilarityStats.min.toFixed(4)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-slate-500">Max</div>
+                <div className="text-sm font-mono text-white">{currentSimilarityStats.max.toFixed(4)}</div>
+              </div>
+              <div className="col-span-2">
+                <div className="text-[10px] text-slate-500">Average</div>
+                <div className="text-sm font-mono text-white">{currentSimilarityStats.avg.toFixed(4)}</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
       </div>
-
-      <div className="p-6 flex flex-col gap-8">
-
-        {/* Category Selection */}
-        <div className="flex flex-col gap-3">
-          <label className="text-sm font-semibold text-slate-300">Select Product Category</label>
-          <div className="relative">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 appearance-none focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
-            >
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-              <ArrowDown size={14} />
-            </div>
-          </div>
-        </div>
-
-        {/* Time Step Slider */}
-        <div className="flex flex-col gap-3">
-          <div className="flex justify-between items-end">
-            <label className="text-sm font-semibold text-slate-300">Select Time Step</label>
-            <span className="text-xs font-mono text-cyan-400">{months[timeIndex] || 'Loading...'}</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max={maxTime}
-            value={timeIndex}
-            onChange={(e) => setTimeIndex(parseInt(e.target.value))}
-            className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-          />
-          <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-            <span>{months[0]}</span>
-            <span>{months[months.length - 1]}</span>
-          </div>
-        </div>
-
-        {/* Similarity Threshold */}
-        <div className="flex flex-col gap-3">
-          <div className="flex justify-between items-end">
-            <label className="text-sm font-semibold text-slate-300">Similarity Threshold</label>
-            <span className="text-xs font-mono text-cyan-400">{similarityThreshold.toFixed(3)}</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.001"
-            value={similarityThreshold}
-            onChange={(e) => setSimilarityThreshold(parseFloat(e.target.value))}
-            className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-red-500"
-          />
-          <p className="text-xs text-slate-500">Filter edges below this correlation value.</p>
-        </div>
-
-        {/* Weighting Technique */}
-        <div className="flex flex-col gap-3">
-          <label className="text-sm font-semibold text-slate-300">Composite Score Weighting</label>
-          <div className="relative">
-            <select
-              value={weightingMethod}
-              onChange={(e) => setWeightingMethod(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 appearance-none focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
-            >
-              {weightingMethods.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-              <ArrowDown size={14} />
-            </div>
-          </div>
-        </div>
-
-        {/* Stats Display */}
-        <div className="bg-slate-900/50 rounded-xl p-4 border border-white/5">
-          <h3 className="text-xs font-bold text-slate-400 uppercase mb-3">Current Similarity Stats</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <div className="text-[10px] text-slate-500">Min</div>
-              <div className="text-sm font-mono text-white">{currentSimilarityStats.min.toFixed(4)}</div>
-            </div>
-            <div>
-              <div className="text-[10px] text-slate-500">Max</div>
-              <div className="text-sm font-mono text-white">{currentSimilarityStats.max.toFixed(4)}</div>
-            </div>
-            <div className="col-span-2">
-              <div className="text-[10px] text-slate-500">Average</div>
-              <div className="text-sm font-mono text-white">{currentSimilarityStats.avg.toFixed(4)}</div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
+    </>
   );
 };
 
@@ -1063,11 +1218,15 @@ function App() {
   // Load Data
   useEffect(() => {
     const loadData = async () => {
+      setLoading(true); // Ensure loading state is set
       // Try Backend First
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout
-        const response = await fetch('http://localhost:5000/api/data/graphs', { signal: controller.signal });
+
+        // Encode category for URL
+        const categoryParam = encodeURIComponent(selectedCategory);
+        const response = await fetch(`http://localhost:5000/api/data/graphs?category=${categoryParam}`, { signal: controller.signal });
         clearTimeout(timeoutId);
 
         if (response.ok) {
@@ -1090,7 +1249,7 @@ function App() {
     };
 
     loadData();
-  }, []);
+  }, [selectedCategory]); // Re-fetch when category changes
 
   // Timeline Loop
   useEffect(() => {
@@ -1107,12 +1266,23 @@ function App() {
   const currentMonth = months[timeIndex] || "";
   const currentMatrix = data[currentMonth] || [];
 
-  const metrics = useMemo(() => calculateCentrality(currentMatrix), [currentMatrix]);
+  // Filter Matrix based on Threshold (Client-Side)
+  const filteredMatrix = useMemo(() => {
+    if (!currentMatrix || currentMatrix.length === 0) return [];
+
+    return currentMatrix.map(row =>
+      row.map(val => val >= similarityThreshold ? val : 0)
+    );
+  }, [currentMatrix, similarityThreshold]);
+
+  const metrics = useMemo(() => calculateCentrality(filteredMatrix), [filteredMatrix]);
 
   // Calculate Similarity Stats
   const similarityStats = useMemo(() => {
     let min = 1, max = 0, sum = 0, count = 0;
-    currentMatrix.forEach(row => row.forEach(val => {
+    // Use original matrix for stats to show full distribution, or filtered?
+    // Usually stats should reflect what's visible, so let's use filteredMatrix but ignore 0s
+    filteredMatrix.forEach(row => row.forEach(val => {
       if (val > 0 && val < 1) { // Ignore self-loops (1.0) and zeros
         if (val < min) min = val;
         if (val > max) max = val;
@@ -1121,29 +1291,96 @@ function App() {
       }
     }));
     return { min: count > 0 ? min : 0, max, avg: count > 0 ? sum / count : 0 };
-  }, [currentMatrix]);
+  }, [filteredMatrix]);
 
-  const chartData = CITIES.map((city, i) => {
-    // Weighting Logic Placeholder
-    let composite = 0;
-    if (weightingMethod === "Equal Weighting") {
-      composite = ((metrics.degree[i] || 0) + (metrics.closeness[i] || 0) + (metrics.eigenvector[i] || 0) + (metrics.betweenness[i] || 0)) / 4;
-    } else if (weightingMethod === "Correlation-Based") {
-      composite = ((metrics.degree[i] || 0) * 0.4 + (metrics.closeness[i] || 0) * 0.2 + (metrics.eigenvector[i] || 0) * 0.2 + (metrics.betweenness[i] || 0) * 0.2);
-    } else {
-      // Default / Other methods
-      composite = ((metrics.degree[i] || 0) + (metrics.closeness[i] || 0) + (metrics.eigenvector[i] || 0) + (metrics.betweenness[i] || 0)) / 4;
-    }
+  // Interactive Weights State
+  const [customWeights, setCustomWeights] = useState({ degree: 0.25, closeness: 0.25, betweenness: 0.25, eigenvector: 0.25 });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  // Weighting Logic Helpers
+  const calculateEntropyWeights = (metrics: any) => {
+    const n = metrics.degree.length;
+    if (n === 0) return { degree: 0.25, closeness: 0.25, betweenness: 0.25, eigenvector: 0.25 };
+
+    const keys = ['degree', 'closeness', 'betweenness', 'eigenvector'];
+    const entropies: Record<string, number> = {};
+    const disperions: Record<string, number> = {};
+    let totalDispersion = 0;
+
+    keys.forEach(key => {
+      const values = metrics[key] as number[];
+      const sum = values.reduce((a, b) => a + b, 0);
+      if (sum === 0) {
+        entropies[key] = 1; // No information
+      } else {
+        // Normalized values
+        const p = values.map(v => v / sum);
+        // Entropy
+        const k = 1 / Math.log(n);
+        let e = 0;
+        p.forEach(val => {
+          if (val > 0) e += val * Math.log(val);
+        });
+        entropies[key] = -k * e;
+      }
+      disperions[key] = 1 - entropies[key];
+      totalDispersion += disperions[key];
+    });
+
+    if (totalDispersion === 0) return { degree: 0.25, closeness: 0.25, betweenness: 0.25, eigenvector: 0.25 };
 
     return {
-      name: city,
-      Degree: metrics.degree[i] || 0,
-      Closeness: metrics.closeness[i] || 0,
-      Betweenness: metrics.betweenness[i] || 0,
-      Eigenvector: metrics.eigenvector[i] || 0,
-      Composite: composite
+      degree: disperions['degree'] / totalDispersion,
+      closeness: disperions['closeness'] / totalDispersion,
+      betweenness: disperions['betweenness'] / totalDispersion,
+      eigenvector: disperions['eigenvector'] / totalDispersion
     };
-  }).sort((a, b) => b.Composite - a.Composite);
+  };
+
+  const CATEGORY_WEIGHTS: Record<string, any> = {
+    "1. Food Staples & Grains": { degree: 0.4, closeness: 0.3, betweenness: 0.1, eigenvector: 0.2 },
+    "2. Meat, Poultry & Dairy": { degree: 0.3, closeness: 0.4, betweenness: 0.1, eigenvector: 0.2 },
+    "3. Oils, Condiments & Sweeteners": { degree: 0.2, closeness: 0.2, betweenness: 0.4, eigenvector: 0.2 },
+    "4. Fruits & Vegetables": { degree: 0.5, closeness: 0.2, betweenness: 0.1, eigenvector: 0.2 },
+    "5. Non-Food Essentials": { degree: 0.2, closeness: 0.3, betweenness: 0.2, eigenvector: 0.3 },
+    "6. Utilities & Transport": { degree: 0.1, closeness: 0.2, betweenness: 0.5, eigenvector: 0.2 },
+    "7. Clothing & Miscellaneous": { degree: 0.2, closeness: 0.2, betweenness: 0.2, eigenvector: 0.4 }
+  };
+
+  const chartData = useMemo(() => {
+    let weights = { degree: 0.25, closeness: 0.25, betweenness: 0.25, eigenvector: 0.25 };
+
+    if (weightingMethod === "Equal Weighting") {
+      weights = { degree: 0.25, closeness: 0.25, betweenness: 0.25, eigenvector: 0.25 };
+    } else if (weightingMethod === "Correlation-Based") {
+      // Simulating correlation weights (Degree usually high correlation with others)
+      weights = { degree: 0.4, closeness: 0.2, betweenness: 0.2, eigenvector: 0.2 };
+    } else if (weightingMethod === "Entropy-Based") {
+      weights = calculateEntropyWeights(metrics);
+    } else if (weightingMethod === "Category Importance") {
+      weights = CATEGORY_WEIGHTS[selectedCategory] || { degree: 0.25, closeness: 0.25, betweenness: 0.25, eigenvector: 0.25 };
+    } else if (weightingMethod === "Interactive") {
+      weights = customWeights;
+    }
+
+    return CITIES.map((city, i) => {
+      const composite = (
+        (metrics.degree[i] || 0) * weights.degree +
+        (metrics.closeness[i] || 0) * weights.closeness +
+        (metrics.betweenness[i] || 0) * weights.betweenness +
+        (metrics.eigenvector[i] || 0) * weights.eigenvector
+      );
+
+      return {
+        name: city,
+        Degree: metrics.degree[i] || 0,
+        Closeness: metrics.closeness[i] || 0,
+        Betweenness: metrics.betweenness[i] || 0,
+        Eigenvector: metrics.eigenvector[i] || 0,
+        Composite: composite
+      };
+    }).sort((a, b) => b.Composite - a.Composite);
+  }, [metrics, weightingMethod, selectedCategory, customWeights]);
 
   return (
     <div className="bg-[#020617] text-slate-200 font-sans selection:bg-cyan-500/30 overflow-x-hidden min-h-screen flex">
@@ -1169,9 +1406,13 @@ function App() {
               weightingMethod={weightingMethod}
               setWeightingMethod={setWeightingMethod}
               currentSimilarityStats={similarityStats}
+              customWeights={customWeights}
+              setCustomWeights={setCustomWeights}
+              isOpen={isSidebarOpen}
+              onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
             />
 
-            <main className="flex-1 min-h-screen flex flex-col min-w-0">
+            <main className={`flex-1 min-h-screen flex flex-col min-w-0 transition-all duration-300 ${isSidebarOpen ? 'ml-80' : 'ml-0'}`}>
 
               {/* Header */}
               <header className="sticky top-0 z-30 bg-[#020617]/90 backdrop-blur-md border-b border-white/10 px-8 py-4 shadow-lg">
@@ -1228,32 +1469,125 @@ function App() {
 
                 {/* Section 1: Force Directed Topology (Large) */}
                 <div className="h-[80vh] min-h-[700px]">
-                  <ForceGraph matrix={currentMatrix} nodes={CITIES} threshold={similarityThreshold} />
+                  <ForceGraph
+                    matrix={filteredMatrix}
+                    nodes={CITIES}
+                    threshold={similarityThreshold}
+                    explanation={`
+**Force Directed Topology Graph**
+
+This visualization represents the **similarity network** of cities based on their price indices for the selected product category.
+
+- **Nodes (Circles):** Represent cities.
+- **Edges (Lines):** Represent a strong similarity in price trends between two cities.
+- **Physics Simulation:** Nodes repel each other, while edges pull connected nodes together, naturally clustering similar cities.
+
+**How it works:**
+1. **Data Source:** Fetches the adjacency matrix for the selected **Product Category** and **Time Step**.
+2. **Filtering:** Edges are only drawn if the similarity score is greater than the **Similarity Threshold** (controlled by the slider).
+3. **Interaction:** Drag nodes to rearrange the layout. Hover to see connections.
+                    `}
+                  />
                 </div>
 
                 {/* Section 2: City Centrality Matrix (Large Table) */}
                 <div className="min-h-[600px]">
-                  <CityCentralityMatrix data={chartData} />
+                  <CityCentralityMatrix
+                    data={chartData}
+                    explanation={`
+**City Centrality Matrix**
+
+This table displays key **Network Centrality Metrics** for each city, providing a quantitative measure of its importance within the price similarity network.
+
+- **Degree:** The number of direct connections (similar cities). High degree = Highly similar to many others.
+- **Closeness:** How close a city is to all other cities in the network. High closeness = Can "reach" other cities quickly (central position).
+- **Betweenness:** How often a city acts as a bridge along the shortest path between two other cities. High betweenness = Connects different clusters.
+- **Eigenvector:** A measure of influence; a city is important if it is connected to other important cities.
+
+**Updates:**
+These metrics are recalculated in real-time based on the **Filtered Matrix** (affected by Category and Threshold).
+                    `}
+                  />
                 </div>
 
                 {/* Section 3: Analytics Grid (Ranking + Comparative) */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 min-h-[600px]">
                   <div className="h-full">
-                    <CompositeScoreRanking data={chartData} />
+                    <CompositeScoreRanking
+                      data={chartData}
+                      explanation={`
+**Composite Score Ranking**
+
+This chart ranks cities based on a **Composite Score**, which is a weighted sum of the four centrality metrics (Degree, Closeness, Betweenness, Eigenvector).
+
+**Formula:**
+\`Composite = w_d * Degree + w_c * Closeness + w_b * Betweenness + w_e * Eigenvector\`
+
+**Configuration:**
+You can adjust the weights using the **Composite Score Weighting** dropdown in the sidebar:
+- **Equal Weighting:** All metrics contribute equally (25%).
+- **Entropy-Based:** Weights are calculated dynamically based on the information entropy of each metric.
+- **Category Importance:** Pre-defined weights optimized for the selected product category.
+- **Interactive:** Manually adjust weights using sliders.
+                      `}
+                    />
                   </div>
                   <div className="h-full">
-                    <ComparativeAnalysis data={chartData} />
+                    <ComparativeAnalysis
+                      data={chartData}
+                      explanation={`
+**Comparative Analysis**
+
+This chart allows you to compare two different metrics side-by-side for the top 5 ranked cities.
+
+- **Purpose:** To visualize the relationship or trade-off between different types of centrality (e.g., Degree vs. Betweenness).
+- **Usage:** Use the dropdowns to select which metrics to compare.
+- **Insight:** Identify cities that might have high connectivity (Degree) but low influence (Eigenvector), or vice versa.
+                      `}
+                    />
                   </div>
                 </div>
 
                 {/* Section 4: Temporal Relation (Hasse) */}
                 <div className="min-h-[500px]">
-                  <TemporalHasseDiagram months={months} activeIndex={timeIndex} />
+                  <TemporalHasseDiagram
+                    months={months}
+                    activeIndex={timeIndex}
+                    matrix={filteredMatrix}
+                    explanation={`
+**Temporal Relation (Hasse Diagram)**
+
+This visualization tracks the mathematical properties of the similarity network over time.
+
+**Properties Monitored:**
+- **Reflexive:** Does every city have a similarity of 1.0 with itself? (Always YES by definition).
+- **Antisymmetric:** If City A is similar to City B, is City B similar to City A? (Symmetric matrices imply this is trivial, but strictly antisymmetric means if A->B then B!->A. For undirected similarity, this is usually NO unless edges are directed). *Note: In this context, we check for strict antisymmetry which is rare in similarity graphs.*
+- **Transitive:** If A is similar to B, and B is similar to C, is A similar to C? (Triangular closure).
+
+**Timeline:**
+The horizontal axis represents the timeline. The current time step is highlighted.
+                    `}
+                  />
                 </div>
 
                 {/* Section 5: Live Correlation Matrix (New) */}
                 <div className="min-h-[800px] mb-12">
-                  <LiveHeatMap matrix={currentMatrix} nodes={CITIES} />
+                  <LiveHeatMap
+                    matrix={filteredMatrix}
+                    nodes={CITIES}
+                    explanation={`
+**Live Correlation Heat Map**
+
+This grid visualizes the exact **Cosine Similarity** score between every pair of cities.
+
+- **Color Scale:**
+  - **Red:** High Similarity (Close to 1.0)
+  - **Blue:** Low Similarity (Close to 0.0)
+- **Axes:** Both X and Y axes list the cities.
+- **Interaction:** Hover over any cell to see the precise correlation value between the two intersecting cities.
+- **Filtering:** Cells with values below the **Similarity Threshold** are filtered out (shown as dark/black).
+                    `}
+                  />
                 </div>
 
               </div>
